@@ -13,8 +13,9 @@ func ==(lhs: ManAppInfo, rhs: String) -> Bool {
 	return toRet == ComparisonResult.orderedSame
 }
 
-final class ManAppInfo: Hashable, CustomDebugStringConvertible {
+final class ManAppInfo: Hashable, CustomDebugStringConvertible, CustomStringConvertible {
 	let bundleID: String
+	let appURL: URL
 	
 	private(set) lazy var displayName: String = {
 		let url = self.appURL
@@ -35,17 +36,11 @@ final class ManAppInfo: Hashable, CustomDebugStringConvertible {
 			return url.lastPathComponent
 			}()
 		
-		if let adict = infoDict, let appVersion = adict["CFBundleShortVersionString"] as? String {
+		if let infoDict, let appVersion = infoDict["CFBundleShortVersionString"] as? String {
 			niceName = "\(niceName) (\(appVersion))"
 		}
 		
 		return niceName
-		}()
-	
-	private(set) lazy var appURL: URL = {
-		let workSpace = NSWorkspace.shared
-		let path = workSpace.absolutePathForApplication(withBundleIdentifier: self.bundleID)!
-		return URL(fileURLWithPath: path)
 		}()
 	
 	func isEqual(_ other: Any?) -> Bool {
@@ -58,17 +53,30 @@ final class ManAppInfo: Hashable, CustomDebugStringConvertible {
 		}
 	}
 	
-	init?(bundleID aBundleID: String) {
-		bundleID = aBundleID
-		
-		let workSpace = NSWorkspace.shared
-		if workSpace.absolutePathForApplication(withBundleIdentifier: aBundleID) == nil {
+	convenience init?(bundleID aBundleID: String) {
+		guard let bundURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: aBundleID) else {
 			return nil
 		}
+		self.init(url: bundURL)
+	}
+
+	init?(url: URL) {
+		appURL = url
+		
+		guard let ident = Bundle(url: url)?.bundleIdentifier else {
+			return nil
+		}
+		bundleID = ident
 	}
 	
 	func hash(into hasher: inout Hasher) {
-		bundleID.lowercased().hash(into: &hasher)
+		guard let ident = try? appURL.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier,
+			  // sssh... fileResourceIdentifiers are secretly NSData objects
+			  let ident2 = ident as? NSData else {
+			hasher.combine(bundleID.lowercased())
+			return
+		}
+		hasher.combine(ident2)
 	}
 	
 	func compare(_ string: ManAppInfo) -> ComparisonResult {
@@ -87,8 +95,12 @@ final class ManAppInfo: Hashable, CustomDebugStringConvertible {
 		return "\(bundleID), \(displayName)"
 	}
 	
+	var description: String {
+		return displayName
+	}
+	
 	static func ==(lhs: ManAppInfo, rhs: ManAppInfo) -> Bool {
 		let toRet = lhs.bundleID.caseInsensitiveCompare(rhs.bundleID)
-		return toRet == ComparisonResult.orderedSame
+		return toRet == .orderedSame
 	}
 }

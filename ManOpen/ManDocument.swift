@@ -8,7 +8,7 @@
 
 import Cocoa
 import ApplicationServices
-import SwiftAdditions
+import FoundationAdditions
 
 private let RestoreWindowDictKey = "RestoreWindowInfo"
 private let RestoreSectionKey    = "Section"
@@ -19,28 +19,13 @@ private let RestoreFileTypeKey   = "DocType"
 
 private let ManWindowSizeKey = "ManWindowSize"
 
-var ourURL: NSPasteboard.PasteboardType {
-	if #available(OSX 10.13, *) {
-		return NSPasteboard.PasteboardType.URL
-	} else {
-		return NSPasteboard.PasteboardType(rawValue: kUTTypeURL as String)
-	}
-}
-var ourFileURL: NSPasteboard.PasteboardType {
-	if #available(OSX 10.13, *) {
-		return NSPasteboard.PasteboardType.fileURL
-	} else {
-		return NSPasteboard.PasteboardType(rawValue: kUTTypeFileURL as String)
-	}
-}
-
 private var filterCommand: String {
 	let defaults = UserDefaults.standard
 	
 	/* HTML parser in tiger got slow... RTF is faster, and is usable now that it supports hyperlinks */
 	//let tool = "cat2html"
 	let tool = "cat2rtf"
-	var command = Bundle.main.path(forResource: tool, ofType: nil)!
+	var command = Bundle.main.path(forAuxiliaryExecutable: tool)!
 	
 	command = escapePath(command, addSurroundingQuotes: true)
 	command += " -lH" // generate links, mark headers
@@ -85,7 +70,7 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 		
 		super.windowControllerDidLoadNib(aController)
 		
-		if let sizeString = sizeString {
+		if let sizeString {
 			let windowSize = NSSize(string: sizeString)
 			let window = textView.window!
 			var frame = window.frame
@@ -170,9 +155,9 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 		fileType = "man"
 		shortTitle = title
 		
-		if let section = section, section.count > 0 {
+		if let section, section.count > 0 {
 			command += " " + section.lowercased()
-			copyURL = URL(string: URL_SCHEME_PREFIX + "//\(section)/\(title)")
+			copyURL = URL(string: URL_SCHEME_PREFIX + "//\(section)/\(name)")
 		} else {
 			copyURL = URL(string: URL_SCHEME_PREFIX + "//\(title)")
 		}
@@ -206,10 +191,12 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 		let backgroundColor = defaults.manBackgroundColor
 		let storage: NSTextStorage = {
 			var storage1: NSTextStorage? = nil
-			if let taskData = taskData, taskData.isRTFData {
-				storage1 = NSTextStorage(rtf: taskData, documentAttributes: nil)
-			} else if let taskData = taskData {
-				storage1 = NSTextStorage(html: taskData, options: [:], documentAttributes: nil)
+			if let taskData {
+				if taskData.isRTFData {
+					storage1 = NSTextStorage(rtf: taskData, documentAttributes: nil)
+				} else {
+					storage1 = NSTextStorage(html: taskData, options: [:], documentAttributes: nil)
+				}
 			}
 			
 			return storage1 ?? NSTextStorage()
@@ -225,6 +212,7 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 		let family = manFont.familyName ?? manFont.fontName
 		let size = manFont.pointSize
 		
+		// MARK: Iterate over data
 		exceptionBlock(try: { () -> Void in
 			var currIndex = 0
 			storage.beginEditing()
@@ -234,14 +222,37 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 				let attribs = storage.attributes(at: currIndex, effectiveRange: &currRange)
 				let font = attribs[.font] as? NSFont
 				
-				if let font1 = font, font1.familyName != "Courier" {
+				if let font, font.familyName != "Courier" {
 					//Using mutableString so we don't have to do Swift String range conversions.
 					self.add(sectionHeader: storage.mutableString.substring(with: currRange), range: currRange)
 				}
 				
 				let isLink = attribs[.link] != nil
+				//Convert link to something that Terminal likes.
+				//TODO: put this in cat2rtf!
+				if let link = attribs[.link] as? URL,
+				   let components = URLComponents(url: link, resolvingAgainstBaseURL: false),
+				   components.scheme == URL_SCHEME {
+					let path = components.host ?? components.path
+					var comp2 = URLComponents()
+					comp2.scheme = URL_SCHEME
+					if let fp = path.range(of: "("),
+					   let lp = path.range(of: ")") {
+						comp2.host = String(path[fp.upperBound ..< lp.lowerBound])
+						comp2.path = "/" + String(path[path.startIndex ..< fp.lowerBound])
+					} else {
+						var path2 = path
+						if path2.hasPrefix("/") {
+							path2.removeFirst()
+						}
+						comp2.host = path2
+					}
+					if let newURL = comp2.url {
+						storage.addAttribute(.link, value: newURL, range: currRange)
+					}
+				}
 				
-				if var font = font {
+				if var font {
 					if font.familyName != family {
 						font = manager.convert(font, toFamily: family)
 					}
@@ -265,10 +276,9 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 				
 				currIndex = currRange.upperBound
 			}
-			
-			storage.endEditing()
 		}, catch: { (localException) -> Void in
 			Swift.print("Exception during formatting: \(localException)")
+		}, finally: {
 			storage.endEditing()
 		})
 		
@@ -352,9 +362,10 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 	
 	@IBAction func openSelection(_ sender: AnyObject?) {
 		let selectedRange = textView.selectedRange()
+		let str = textView.string
 		
-		if selectedRange.length > 0 {
-			let selectedString = (textView.string as NSString).substring(with: selectedRange)
+		if selectedRange.length > 0, let rang = Range(selectedRange, in: str) {
+			let selectedString = String(str[rang])
 			(ManDocumentController.shared as! ManDocumentController).openString(selectedString)
 		}
 		
@@ -370,21 +381,21 @@ final class ManDocument: NSDocument, NSWindowDelegate {
 	}
 	
 	@IBAction func copyURL(_ sender: AnyObject?) {
-		if let aCopyURL = copyURL {
+		if let copyURL {
 			let pb = NSPasteboard.general
 			var types = [NSPasteboard.PasteboardType]()
 			
-			types.append(ourURL)
-			if aCopyURL.isFileURL {
-				types.append(ourFileURL)
+			types.append(.URL)
+			if copyURL.isFileURL {
+				types.append(.fileURL)
 			}
 			types.append(.string)
 			pb.declareTypes(types, owner: nil)
 			
-			(aCopyURL as NSURL).write(to: pb)
-			pb.setString("<\(aCopyURL.absoluteString)>", forType: .string)
-			if aCopyURL.isFileURL {
-				pb.setPropertyList([aCopyURL], forType: ourFileURL)
+			(copyURL as NSURL).write(to: pb)
+			pb.setString("<\(copyURL.absoluteString)>", forType: .string)
+			if copyURL.isFileURL {
+				pb.setPropertyList([copyURL], forType: .fileURL)
 			}
 		}
 	}

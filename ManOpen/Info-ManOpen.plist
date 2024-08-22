@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>English</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -95,20 +93,8 @@
 			<string>$(PRODUCT_MODULE_NAME).ManDocument</string>
 		</dict>
 	</array>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleGetInfoString</key>
-	<string>ManOpen 3.0.2 © 2012 Carl Lindberg, 2010 Jan Weiß</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>3.0.2</string>
+	<string>ManOpen $(MARKETING_VERSION) © 2012 Carl Lindberg, 2010 Jan Weiß</string>
 	<key>CFBundleSignature</key>
 	<string>MnOp</string>
 	<key>CFBundleURLTypes</key>
@@ -124,18 +110,8 @@
 			</array>
 		</dict>
 	</array>
-	<key>CFBundleVersion</key>
-	<string>3.0.2</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
-	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 1999-2012 Carl Lindberg, 2010 Jan Weiß</string>
-	<key>NSMainNibFile</key>
-	<string>ManOpen</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 	<key>NSServices</key>
 	<array>
 		<dict>
@@ -144,7 +120,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>ManOpen/Open Man File</string>
+				<string>Open File in ManOpen</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>openFiles</string>
@@ -172,7 +148,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>ManOpen/Open Man Selection</string>
+				<string>Open man Page in ManOpen</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>openSelection</string>
@@ -200,7 +176,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>ManOpen/Apropos Selection</string>
+				<string>Search man Page Index in ManOpen</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>openApropos</string>
@@ -220,5 +196,7 @@
 	</array>
 	<key>NSSupportsSuddenTermination</key>
 	<true/>
+	<key>OSAScriptingDefinition</key>
+	<string>ManOpen.sdef</string>
 </dict>
 </plist>

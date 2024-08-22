@@ -1,0 +1,42 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "25.ibShadowedToolTip" : {
+      "comment" : "Class = \"NSButton\"; ibShadowedToolTip = \" Open selection \"; ObjectID = \"25\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : " Open selection "
+          }
+        }
+      }
+    },
+    "49.title" : {
+      "comment" : "Class = \"NSMenuItem\"; title = \"Section:\"; ObjectID = \"49\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Section:"
+          }
+        }
+      }
+    },
+    "62.title" : {
+      "comment" : "Class = \"NSTextFieldCell\"; title = \"Title\"; ObjectID = \"62\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Title"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -116,7 +116,7 @@
 
     static void emitBackspacedLetters(char *charblock, yy_size_t lengthLeft, int doBold)
     {
-        /* If there's a trailing backspace, then both letters are deleted, so print nothing */
+        /* If there is a trailing backspace, then both letters are deleted, so print nothing */
         if (lengthLeft >= 4 && charblock[3] == '\010')
             return;
 
@@ -154,7 +154,7 @@
     static void emitUnicode(unsigned charNum)
     {
         char entityBuf[20];
-        sprintf(entityBuf, "&#x%x;", charNum);
+        snprintf(entityBuf, sizeof(entityBuf), "&#x%x;", charNum);
         emitRaw(entityBuf);
     }
 
@@ -273,7 +273,7 @@ SGRSTART     \x1B\[
     /*
      *    nroff bullets
      */
-o\010"+"               emitRaw("&middot;");   // "&bull;" doesn't work
+o\010"+"               emitRaw("&middot;");   // "&bull;" does not work
 "+"\010o               emitRaw("&middot;");
 o\010o\010"+"\010"+"   emitRaw("&middot;");
 "+"\010"+\010"o\010o   emitRaw("&middot;");
@@ -335,7 +335,7 @@ _\010{ALLBUTUL}        {
 
 %%
 
-static void usage() {
+static void usage(void) {
 
     fprintf(stderr,"Usage: cat2html [-il] [<filename>]\n"
         "\tTranslate output of (g)nroff to HTML. If no\n"
@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
 
     yy_flex_debug = 0;
 
-    /* Keep the same args as cat2rtf, even though -s doesn't really make much difference */
+    /* Keep the same args as cat2rtf, even though -s does not really make much difference */
     while ((c = getopt(argc, argv, "dgGiISs:lH")) != EOF)
     {
         switch( c ) {

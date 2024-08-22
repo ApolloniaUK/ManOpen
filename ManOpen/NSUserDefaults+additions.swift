@@ -7,7 +7,7 @@
 //
 
 import Cocoa
-import SwiftAdditions
+import FoundationAdditions
 
 let manTextColorKey = "ManTextColor"
 let manLinkColorKey = "ManLinkColor"
@@ -17,24 +17,21 @@ let manBackgroundColorKey = "ManBackgroundColor"
 
 private func color(for key: String, defaults: UserDefaults = UserDefaults.standard) -> NSColor? {
 	if let colorData: Data = defaults[key] {
-		if #available(OSX 10.13, *) {
-			if let dat1 = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: colorData) {
-				return dat1
+		var colorRet: NSColor? = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: colorData)
+		if colorRet == nil {
+			if let colorRet1 = NSUnarchiver.unarchiveObject(with: colorData) as? NSColor {
+				colorRet = colorRet1
+				defaults[key] = dataForColor(colorRet1)
 			}
-		} else {
-			return NSKeyedUnarchiver.unarchiveObject(with: colorData) as? NSColor
 		}
+		return colorRet
 	}
 	
 	return nil
 }
 
 internal func dataForColor(_ color: NSColor) -> Data {
-	if #available(OSX 10.13, *) {
-		return try! NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: true)
-	} else {
-		return NSKeyedArchiver.archivedData(withRootObject: color)
-	}
+	return try! NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: true)
 }
 
 extension UserDefaults {
@@ -102,6 +99,10 @@ extension UserDefaults {
 			}
 		}
 		
-		return NSFont.userFixedPitchFont(ofSize: 12.0)! // Monaco, or Menlo
+		if #available(macOS 10.15, *) {
+			return NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+		} else {
+			return NSFont.userFixedPitchFont(ofSize: 12.0)! // Monaco, or Menlo
+		}
 	}
 }

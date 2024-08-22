@@ -8,7 +8,7 @@
 
 import Cocoa
 import CoreServices
-import SwiftAdditions
+import FoundationAdditions
 
 
 let manPathIndexSetPboardType = NSPasteboard.PasteboardType(rawValue: "org.clindberg.ManOpen.ManPathIndexSetType")
@@ -24,12 +24,11 @@ let kQuitWhenLastClosed	= "QuitWhenLastClosed"
 let kNroffCommand		= "NroffCommand"
 
 
-class PrefPanelController: NSWindowController, NSTableViewDataSource {
+class PrefPanelController: NSWindowController, NSFontChanging, NSTableViewDataSource, NSMenuItemValidation {
 
 	static let shared: PrefPanelController = {
 		let toRet = PrefPanelController(windowNibName: "PrefPanel")
 		toRet.shouldCascadeWindows = false
-		NSFontManager.shared.delegate = toRet
 		
 		return toRet
 	}()
@@ -57,7 +56,6 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 	@IBOutlet weak var appPopup: NSPopUpButton!
 	
 	class func registerManDefaults() {
-		let userDefaults = UserDefaults.standard
 		let manager = FileManager.default
 		let nroff = "nroff -mandoc '%@'"
 		var manpath = "/usr/local/man:/usr/local/share/man:/usr/share/man"
@@ -78,7 +76,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 		}
 
 		
-		let linkDefaultColor = dataForColor(NSColor(srgbRed: 0.10, green: 0.10, blue: 1.0, alpha: 1.0))
+		let linkDefaultColor = dataForColor(NSColor.systemBlue)
 		let textDefaultColor = dataForColor(NSColor.textColor)
 		let bgDefaultColor = dataForColor(NSColor.textBackgroundColor)
 		
@@ -93,7 +91,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 		                                    manBackgroundColorKey:	bgDefaultColor,
 		                                    "NSQuitAlwaysKeepsWindows":	true]
 		
-		userDefaults.register(defaults: someDefaults)
+		UserDefaults.standard.register(defaults: someDefaults)
 		NSUserDefaultsController.shared.initialValues = someDefaults
 	}
 	
@@ -116,7 +114,6 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 	
     override func windowDidLoad() {
 		self.shouldCascadeWindows = false
-		NSFontManager.shared.delegate = self
         super.windowDidLoad()
     
         // Implement this method to handle any initialization after your window controller's window has been loaded from its nib file.
@@ -136,9 +133,9 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 		return (sender as! NSFontManager).fontNamed(fontName, hasTraits: .fixedPitchFontMask)
 	}
 	
-	@objc func changeFont(_ sender: Any!) {
+	func changeFont(_ sender: NSFontManager?) {
 		guard var font = fontFieldFont,
-			let sender = sender as? NSFontManager else {
+			let sender else {
 			NSSound.beep()
 			return
 		}
@@ -148,6 +145,10 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 		self.fontFieldFont = font
 		let fontString = "\(font.pointSize) \(font.fontName)"
 		UserDefaults.standard[manFontKey] = fontString
+	}
+	
+	func validModesForFontPanel(_ fontPanel: NSFontPanel) -> NSFontPanel.ModeMask {
+		return [.face, .size, .collection]
 	}
 	
 	func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -161,7 +162,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 		if action == #selector(PrefPanelController.paste(_:)) {
 			let types = NSPasteboard.general.types!
 			return manPathController.canInsert &&
-				(types.contains(ourFileURL) || types.contains(.string))
+			(types.contains(.fileURL) || types.contains(.string))
 		}
 		
 		/* The menu on our app popup may call this validate method ;-) */
@@ -175,7 +176,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 	// MARK: DefaultManApp
 	
 	func setAppPopupToCurrent() {
-		let currIndex = appInfos.index(bundleID: currentAppID) ?? 0
+		let currIndex = appInfos.firstIndex(withBundleID: currentAppID) ?? 0
 		
 		if currIndex < appPopup.numberOfItems {
 			appPopup.selectItem(at: currIndex)
@@ -192,10 +193,15 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 		for (i, info) in appInfos.enumerated() {
 			let image = workspace.icon(forFile: info.appURL.path).copy() as! NSImage
 			let niceName = info.displayName
-			let displayName = niceName
-			//var num = 2
+			var displayName = niceName
+			var num = 2
 			
 			appPopup.addItem(withTitle: displayName)
+			while (appPopup.itemArray.count - 1) < i {
+				displayName = "\(niceName)-\(num)"
+				appPopup.addItem(withTitle: displayName)
+				num += 1
+			}
 			
 			image.size = NSSize(width: 16, height: 16)
 			appPopup.item(at: i)?.image = image
@@ -226,7 +232,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 			
 			currentAppID = currSetID
 			
-			if appInfos.index(bundleID: currSetID) == nil {
+			if appInfos.firstIndex(withBundleID: currSetID) == nil {
 				appInfos.addApp(identifier: currSetID, shouldResort: true)
 				resetPopup = true
 			}
@@ -278,7 +284,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 	// MARK: man paths
 
 	func setUpManPathUI() {
-		manPathTableView.registerForDraggedTypes([ourFileURL, .string, manPathIndexSetPboardType])
+		manPathTableView.registerForDraggedTypes([.fileURL, .string, manPathIndexSetPboardType])
 		manPathTableView.verticalMotionCanBeginDrag = true
 		// XXX NSDragOperationDelete -- not sure the "poof" drag can show that
 		manPathTableView.setDraggingSourceOperationMask(.copy, forLocal: false)
@@ -384,10 +390,18 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 	}
 	
 	func paths(from pb: NSPasteboard) -> [String]? {
-		let bestType = pb.availableType(from: [ourFileURL, .string])
+		let bestType = pb.availableType(from: [.fileURL, .string])
 		
-		if bestType == ourFileURL {
-			return (pb.propertyList(forType: ourFileURL) as! [URL]).map({$0.path})
+		if bestType == .fileURL {
+			if let pbos = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+				return pbos.map({$0.path})
+			}
+			guard let plo = pb.propertyList(forType: .fileURL),
+				  let strVal = plo as? String,
+				  let urlVal = URL(string: strVal) else {
+				return nil
+			}
+			return [urlVal.path]
 		}
 		
 		if bestType == .string {
@@ -445,7 +459,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 		
 		if let paths = self.paths(from: pb) {
 			for path in paths {
-				if manPathArrayPriv.contains(path) {
+				if !manPathArrayPriv.contains(path) {
 					return .copy
 				}
 			}
@@ -471,7 +485,7 @@ class PrefPanelController: NSWindowController, NSTableViewDataSource {
 			pathsToAdd = paths(from: pb)
 		}
 		
-		if let pathsToAdd = pathsToAdd, pathsToAdd.count > 0 {
+		if let pathsToAdd, pathsToAdd.count > 0 {
 			addPathDirectories(pathsToAdd, atIndex: row, removeFirst: removeSet)
 			return true
 		}

@@ -7,7 +7,7 @@
 //
 
 import Cocoa
-import SwiftAdditions
+import FoundationAdditions
 
 private let restoreSearchString = "SearchString"
 private let restoreTitle = "Title"
@@ -39,7 +39,7 @@ class AproposDocument: NSDocument, NSTableViewDataSource {
 	}
 	
 	func parseOutput(_ output: String?) {
-		guard let output = output else {
+		guard let output else {
 			return
 		}
 		
@@ -71,9 +71,10 @@ class AproposDocument: NSDocument, NSTableViewDataSource {
 				dashRange = line.range(of: " -", options: [.backwards, .anchored])
 			}
 			
-			if let aDashRange = dashRange {
-				let title = String(line[line.startIndex ..< aDashRange.lowerBound]).trimmingCharacters(in: CharacterSet.whitespaces)
-				let adescription = line[aDashRange.upperBound ..< line.endIndex]
+			if let dashRange {
+				let preTitle = line[line.startIndex ..< dashRange.lowerBound]
+				let title = preTitle.trimmingCharacters(in: .whitespaces)
+				let adescription = line[dashRange.upperBound ..< line.endIndex]
 				aproposItems.append((title: title, desc: String(adescription)))
 			}
 		}
@@ -84,8 +85,8 @@ class AproposDocument: NSDocument, NSTableViewDataSource {
 		
 		super.windowControllerDidLoadNib(aController)
 		// Add any code here that needs to be executed once the windowController has loaded the document's window.
-		if let sizeString = aSizeString {
-			let windowSize = NSSize(string: sizeString)
+		if let aSizeString {
+			let windowSize = NSSize(string: aSizeString)
 			let window = tableView.window
 			var frame = window!.frame
 			

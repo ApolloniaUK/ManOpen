@@ -180,7 +180,7 @@
     {
         short rtfVal = charNum;
         char rtfBuf[20];
-        sprintf(rtfBuf, "{\\uc1\\u%hd?}", rtfVal);
+        snprintf(rtfBuf, sizeof(rtfBuf), "{\\uc1\\u%hd?}", rtfVal);
         emitString(rtfBuf);
     }
 
@@ -256,7 +256,7 @@ SGRSTART     \x1B\[
 
 	            emitChars(yytext, yyleng);
 
-                sprintf(numbuf, "%d", linkNum+=3);  //for some reason, Edit.app increments by 3
+                snprintf(numbuf, sizeof(numbuf), "%d", linkNum+=3);  //for some reason, Edit.app increments by 3
                 emitString("{{\\NeXTHelpLink");
                 emitString(numbuf);
                 emitString(" \\markername ");
@@ -374,7 +374,7 @@ _\010{ALLBUTUL}        {
 
 %%
 
-static void usage() {
+static void usage(void) {
 
     fprintf(stderr,"Usage: cat2rtf [-gil] [-s <num>| -S] [<filename>]\n"
         "\tTranslate output of (g)nroff to RTF. If no\n"
